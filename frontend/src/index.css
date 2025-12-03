@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base global para controlar el comportamiento de desplazamiento en touchpad */
+@layer base {
+  /* Evita el overscroll y el encadenamiento de scroll (scroll chaining) */
+  html, body {
+    overscroll-behavior: none;
+  }
+  /* Asegura altura completa para el contenedor raíz */
+  #root {
+    height: 100%;
+  }
+}
+
+/* Utilidades personalizadas */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE y Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Bloquea gestos táctiles no deseados como pinch-zoom y pan horizontal */
+  .bloquear_gestos_tactiles {
+    touch-action: pan-y;
+  }
+  /* Contiene el overscroll dentro del contenedor para evitar saltos de página */
+  .bloquear_overscroll {
+    overscroll-behavior: contain;
+  }
+}
