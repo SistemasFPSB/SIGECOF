@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { ItemsSidebar, ItemsSidebarInferior } from '../../utilidades/items';
 import { obtener_sidebar_estado, guardar_sidebar_estado, iniciar_ws, on_evento_ws } from '../../utilidades/estado_persistente.jsx';
@@ -33,9 +34,16 @@ const Sidebar = ({ sidebarColapsado, setSidebarColapsado, menuActivo }) => {
             if (API_BASE && /^https?:\/\//.test(API_BASE)) return API_BASE;
             try {
               const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
-              return `http://${host}:5000/api`;
+              const proto = typeof window !== 'undefined' ? (window.location?.protocol || 'http:') : 'http:';
+              return `${proto}//${host}:5000/api`;
             } catch (_) {
-              return 'http://localhost:5000/api';
+              try {
+                const proto = typeof window !== 'undefined' ? (window.location?.protocol || 'http:') : 'http:';
+                const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
+                return `${proto}//${host}:5000/api`;
+              } catch (_) {
+                return 'http://localhost:5000/api';
+              }
             }
           })();
           const hdrs = token ? { Authorization: `Bearer ${token}` } : {};

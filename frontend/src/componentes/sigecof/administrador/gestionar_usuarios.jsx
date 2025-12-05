@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Search, User, X, Edit3, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { obtener_primera_ruta_permitida, puede_ver_seccion, etiqueta_rol } from './roles_permisos';

@@ -1,25 +1,51 @@
 const { Pool } = require('pg');
-require('dotenv').config({ quiet: true });
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+const raizProyecto = path.resolve(__dirname, '..');
+const archivoEnv = [
+  path.join(raizProyecto, '.env.local'),
+  path.join(raizProyecto, `.env.${process.env.NODE_ENV || 'development'}`),
+  path.join(raizProyecto, '.env'),
+].find((p) => {
+  try { return fs.existsSync(p); } catch (_) { return false; }
+});
+dotenv.config(archivoEnv ? { path: archivoEnv, quiet: true } : { quiet: true });
 
 // Control de nivel de logs (configurable por .env)
 const LOG_QUERIES = process.env.DB_LOG_QUERIES === 'true';
 const LOG_ERRORS = process.env.DB_LOG_ERRORS !== 'false'; // por defecto true
 const LOG_POOL = process.env.DB_LOG_POOL === 'true';
 
-// Configuración de la conexión a PostgreSQL
+const env = process.env;
+let host = env.DB_HOST || env.PGHOST || 'localhost';
+if (String(host).trim().toLowerCase() === 'postgres') {
+  host = 'localhost';
+}
+const user = env.DB_USER || env.PGUSER || env.USER || env.USERNAME || undefined;
+const password = String(env.DB_PASSWORD ?? env.PGPASSWORD ?? '');
+const database = env.DB_NAME || env.PGDATABASE || 'sigecof_db';
+const port = parseInt(env.DB_PORT || env.PGPORT || '5432', 10);
+const useSSL = String(env.DB_SSL || '').toLowerCase() === 'true';
+const MAX_RETRIES = parseInt(env.DB_MAX_RETRIES || '3', 10);
+
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD),
-  database: process.env.DB_NAME,
-  port: parseInt(process.env.DB_PORT),
-  // Configuraciones adicionales para producción
-  max: 20, // máximo número de conexiones en el pool
-  idleTimeoutMillis: 300000, // 5 minutos antes de cerrar conexiones inactivas
-  connectionTimeoutMillis: 5000, // 5 segundos para establecer conexión
-  acquireTimeoutMillis: 60000, // 60 segundos para obtener conexión del pool
-  ssl: false // Desactivar SSL para desarrollo local
+  host,
+  user,
+  password,
+  database,
+  port,
+  max: 20,
+  idleTimeoutMillis: 300000,
+  connectionTimeoutMillis: 5000,
+  acquireTimeoutMillis: 60000,
+  ssl: useSSL ? { rejectUnauthorized: false } : false
 });
+
+if (LOG_POOL) {
+  const usr = user || '-';
+  console.log(`📊 PostgreSQL: ${database}@${host}:${port} usuario=${usr} contraseña=${password ? '***' : '(vacía)'}`);
+}
 
 // Manejo de eventos del pool
 pool.on('connect', (client) => {
@@ -67,6 +93,12 @@ process.on('SIGTERM', async () => {
 // Función para probar la conexión
 const testConnection = async () => {
   try {
+    if (!password || password.length === 0) {
+      if (LOG_ERRORS) {
+        console.error('❌ Contraseña de base de datos vacía o no definida. Configure DB_PASSWORD o PGPASSWORD');
+      }
+      return false;
+    }
     const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
     if (LOG_POOL) {
@@ -83,7 +115,7 @@ const testConnection = async () => {
 };
 
 // Función para ejecutar queries con reintentos
-const query = async (text, params, retries = 3) => {
+const query = async (text, params, retries = MAX_RETRIES) => {
   const start = Date.now();
   
   for (let attempt = 1; attempt <= retries; attempt++) {

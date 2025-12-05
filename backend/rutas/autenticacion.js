@@ -287,6 +287,33 @@ const iniciar_sesion = async (req, res) => {
   }
 };
 router.post('/iniciar_sesion', iniciar_sesion);
+router.post('/cerrar_sesion', async (req, res) => {
+  try {
+    const sid = extraerSid(req);
+    if (sid) {
+      try { await consultar('DELETE FROM sesiones WHERE sid = $1', [sid]); } catch (_) {}
+    }
+    const esProduccion = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+    const base = { path: '/' };
+    const dom = process.env.COOKIE_DOMAIN || undefined;
+    let opts;
+    if (esProduccion) {
+      const sameSiteEnv = (process.env.COOKIE_SAMESITE || '').toLowerCase();
+      const secureEnv = (process.env.COOKIE_SECURE || '').toLowerCase();
+      const sameSite = ['lax','strict','none'].includes(sameSiteEnv) ? sameSiteEnv : 'none';
+      const secure = ['true','false'].includes(secureEnv) ? (secureEnv === 'true') : true;
+      opts = { ...base, secure, sameSite, domain: dom };
+    } else {
+      opts = { ...base, secure: false, sameSite: 'lax', domain: dom };
+    }
+    try { res.clearCookie('sid', opts); } catch (_) {}
+    try { res.clearCookie('sigecof_session', opts); } catch (_) {}
+    try { res.clearCookie('sigecof_csrf', opts); } catch (_) {}
+    return res.json({ exito: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
 // Recuperación de contraseña: genera una temporal y obliga cambio
 router.post('/recuperar_contrasena', async (req, res) => {
   try {

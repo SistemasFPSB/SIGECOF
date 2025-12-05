@@ -12,6 +12,10 @@ dist/
 backend/dist/
 frontend/dist/
 
+frontend/build/
+backend/archivos/
+backend/archivos/**
+
 coverage/
 *.coverage
 
@@ -19,6 +23,8 @@ coverage/
 .env.*
 backend/.env
 frontend/.env
+backend/.env.prod
+frontend/.env.prod
 
 .eslintcache
 .cache/
@@ -35,3 +41,12 @@ Desktop.ini
 
 *.swp
 *.swo
+*.pem
+*.crt
+*.key
+.nyc_output/
+.trae/
+certs/
+docker-compose.override.yml
+docker-compose.*.local.yml
+.dockerignore

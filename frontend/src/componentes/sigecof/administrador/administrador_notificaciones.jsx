@@ -2,9 +2,10 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { obtenerTituloPorMenu, ItemsSidebar, ItemsSidebarInferior } from '../../utilidades/items';
 import { useMensajesConfirmacion } from '../../utilidades/comunes/mensajes_confirmacion.jsx';
-import { puede_ver_seccion, obtener_primera_ruta_permitida, obtener_rol_actual } from './roles_permisos.jsx';
+import { puede_ver_seccion, obtener_primera_ruta_permitida, obtener_rol_actual, PermisosRuta } from './roles_permisos.jsx';
 import { obtenerIdPorRuta } from '../../utilidades/items';
 import { cola_eventos } from '../notificaciones/cola_eventos.js';
+import { FiCheckCircle, FiAlertTriangle, FiInfo, FiClipboard, FiMail, FiRefreshCw, FiPlus, FiEdit3, FiBell, FiTrash2 } from 'react-icons/fi';
 
 export const TIPOS_NOTIFICACION = {
   exito: 'exito',

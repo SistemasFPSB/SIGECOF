@@ -12,16 +12,73 @@ export const ProveedorInicioSesion = ({ children }) => {
   const [requiereCambioContrasena, setRequiereCambioContrasena] = useState(false);
 
   const API_BASE = process.env.REACT_APP_API_URL;
-  let API_URL = 'http://localhost:5000/api';
-  try {
-    const abs = API_BASE && /^https?:\/\//.test(API_BASE);
-    if (abs) {
-      API_URL = String(API_BASE).replace(/\/+$/, '');
-    } else if (typeof window !== 'undefined') {
-      const host = window.location?.hostname || 'localhost';
-      API_URL = `http://${host}:5000/api`;
+  const API_URL = (() => {
+    try {
+      const proto = typeof window !== 'undefined' ? (window.location?.protocol || 'http:') : 'http:';
+      const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
+      if (API_BASE && /^https?:\/\//.test(API_BASE)) {
+        const api = new URL(API_BASE);
+        const mismoHost = api.hostname === host;
+        return mismoHost ? API_BASE.replace(/\/+$/, '') : `${proto}//${host}:5000/api`;
+      }
+      return `${proto}//${host}:5000/api`;
+    } catch (_) {
+      try {
+        const proto = typeof window !== 'undefined' ? (window.location?.protocol || 'http:') : 'http:';
+        const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
+        return `${proto}//${host}:5000/api`;
+      } catch (_) {
+        return 'http://localhost:5000/api';
+      }
     }
-  } catch (_) { /* mantener fallback */ }
+  })();
+
+  const fetch_flexible = async (ruta_o_url, opciones = {}) => {
+    const es_absoluta = /^https?:\/\//.test(String(ruta_o_url || ''));
+    const url_principal = es_absoluta ? String(ruta_o_url) : `${API_URL}${String(ruta_o_url).startsWith('/') ? '' : '/'}${ruta_o_url}`;
+    const controller = new AbortController();
+    const externo = opciones.signal;
+    if (externo) {
+      const onAbort = () => { try { controller.abort(); } catch (_) {} };
+      if (externo.aborted) onAbort(); else externo.addEventListener('abort', onAbort, { once: true });
+    }
+    const timeout = setTimeout(() => { try { controller.abort(); } catch (_) {} }, 15000);
+    const opts = { credentials: 'include', ...opciones, signal: controller.signal };
+    try {
+      const r = await fetch(url_principal, opts);
+      try { clearTimeout(timeout); } catch (_) {}
+      return r;
+    } catch (_) {
+      try {
+        const base = process.env.REACT_APP_API_URL;
+        let origen = null;
+        if (base && /^https?:\/\//.test(base)) {
+          try { origen = new URL(base).origin; } catch (_) { origen = null; }
+        }
+        if (!origen) {
+          try {
+            const proto = typeof window !== 'undefined' ? (window.location?.protocol || 'http:') : 'http:';
+            const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
+            origen = `${proto}//${host}:5000`;
+          } catch (_) {
+            origen = 'http://localhost:5000';
+          }
+        }
+        const rel = (() => {
+          const p = String(ruta_o_url || '');
+          if (/^\/api(\b|\/)/.test(p)) return p;
+          const limpio = p.startsWith('/') ? p : `/${p}`;
+          return `/api${limpio}`;
+        })();
+        const r2 = await fetch(`${origen}${rel}`, opts);
+        try { clearTimeout(timeout); } catch (_) {}
+        return r2;
+      } catch (e) {
+        try { clearTimeout(timeout); } catch (_) {}
+        throw e;
+      }
+    }
+  };
 
   const guardar_en_almacenamiento = (tok, usuario, persistente) => {
     try {
@@ -71,12 +128,16 @@ export const ProveedorInicioSesion = ({ children }) => {
 
   const login = async (usuario, contrasena, persistente = true) => {
     try {
-      const res = await fetch(`${API_URL}/autenticacion/iniciar_sesion`, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => { try { controller.abort(); } catch (_) {} }, 15000);
+      const res = await fetch_flexible('/autenticacion/iniciar_sesion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ usuario, password: contrasena, persistente })
+        body: JSON.stringify({ usuario, password: contrasena, persistente }),
+        signal: controller.signal
       });
+      try { clearTimeout(timeout); } catch (_) {}
       const contentType = res.headers.get('content-type') || '';
       const data = contentType.includes('application/json') ? await res.json() : { exito: false, error: (await res.text()) };
       if (!res.ok || !data.exito) {
@@ -138,7 +199,7 @@ export const ProveedorInicioSesion = ({ children }) => {
       return data;
     } catch (e) {
       const msg = (e?.message || '').toLowerCase();
-      const legible = (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error'))
+      const legible = (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error') || msg.includes('aborted'))
         ? 'No se pudo conectar con el servidor. Es posible que la conexión con la base de datos no esté disponible.'
         : (e?.message || 'Error de conexión. Verifique que el servidor esté funcionando.');
       throw new Error(legible);
@@ -179,20 +240,7 @@ export const ProveedorInicioSesion = ({ children }) => {
     const inicioCargaTs = Date.now();
     const minimoOverlayMs = 500;
     const fetch_con_fallback = async (url, opciones = {}) => {
-      try {
-        const r = await fetch(url, { credentials: 'include', ...opciones });
-        return r;
-      } catch (_) {
-        try {
-          const base = process.env.REACT_APP_API_URL;
-          const origen = (base && /^https?:\/\//.test(base)) ? new URL(base).origin : 'http://localhost:5000';
-          const path = url.startsWith('/api') ? url : (url.includes('/api/') ? url : `/api${url}`);
-          const r2 = await fetch(`${origen}${path}`, { credentials: 'include', ...opciones });
-          return r2;
-        } catch (e) {
-          throw e;
-        }
-      }
+      return fetch_flexible(url, opciones);
     };
     async function intentamos_cookie_fallback() {
       try {

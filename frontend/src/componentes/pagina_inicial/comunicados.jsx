@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaFilePdf, FaFileExcel, FaPaperclip } from 'react-icons/fa';
+import { FaFilePdf, FaFileExcel, FaPaperclip, FaFilter, FaCalendarAlt, FaUser, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 
 /**
  * Componente de la sección Comunicados

@@ -5,10 +5,22 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const https = require('https');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const cookie = require('cookie');
 const jwt = require('jsonwebtoken');
-require('dotenv').config({ quiet: true });
+const bcrypt = require('bcryptjs');
+const dotenv = require('dotenv');
+const raizProyecto = path.resolve(__dirname, '..');
+const archivoEnv = [
+  path.join(raizProyecto, '.env.local'),
+  path.join(raizProyecto, `.env.${process.env.NODE_ENV || 'development'}`),
+  path.join(raizProyecto, '.env'),
+].find((p) => {
+  try { return fs.existsSync(p); } catch (_) { return false; }
+});
+dotenv.config(archivoEnv ? { path: archivoEnv, quiet: true } : { quiet: true });
 
 // Configuración de la aplicación Express
 const app = express();
@@ -59,6 +71,9 @@ const ORIGIN_REGEX = [
   /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
   /^https?:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}(?::\d+)?$/,
   /^https?:\/\/10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(?::\d+)?$/,
+  /^https?:\/\/[a-z0-9-]+\.local(?::\d+)?$/,
+  /^https?:\/\/[a-z0-9-]+\.lan(?::\d+)?$/,
+  /^https?:\/\/[a-z0-9-]+(?::\d+)?$/,
 ];
 
 app.use(cors({
@@ -268,39 +283,36 @@ const intentar_conexion_inicial = async (reintentos = 8, intervalo_ms = 2000) =>
   return false;
 };
 
-const server = app.listen(PORT, '0.0.0.0', async () => {
-console.log(`🚀 Servidor SIGECOF ejecutándose en puerto ${PORT}`);
-console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-console.log(`📊 Base de datos: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}`);
-  
-  // Verificación de conexión inicial a la base de datos
+const USE_HTTPS = String(process.env.HTTPS_ENABLED || '').toLowerCase() === 'true';
+const HTTPS_PORT = process.env.HTTPS_PORT || PORT;
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '';
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '';
+
+const onStart = async () => {
+  const actualPort = (server && server.address && server.address().port) ? server.address().port : (USE_HTTPS ? HTTPS_PORT : PORT);
+  console.log(`🚀 Servidor SIGECOF ejecutándose en puerto ${actualPort}`);
+  console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  const DB_NAME_SHOW = process.env.DB_NAME || process.env.PGDATABASE || 'sigecof';
+  const DB_HOST_SHOW = process.env.DB_HOST || process.env.PGHOST || 'localhost';
+  const DB_PORT_SHOW = process.env.DB_PORT || process.env.PGPORT || '5432';
+  console.log(`📊 Base de datos: ${DB_NAME_SHOW}@${DB_HOST_SHOW}:${DB_PORT_SHOW}`);
+
   try {
     const conectado = await intentar_conexion_inicial(8, 2000);
     if (!conectado) {
       throw new Error('No disponible');
     }
     console.log('✅ Conexión inicial a base de datos exitosa');
-    // Asegurar tabla de usuarios y estructura
     await asegurar_tabla_usuarios();
-    if (SERVER_LOG_DETALLE) {
-      console.log('✅ Tabla "usuarios" verificada/creada correctamente');
-    }
-    // Asegurar tabla del carrusel
+    if (SERVER_LOG_DETALLE) { console.log('✅ Tabla "usuarios" verificada/creada correctamente'); }
     await asegurar_tabla_carrusel();
-    if (SERVER_LOG_DETALLE) {
-      console.log('✅ Tabla "carrusel_banners" verificada/creada correctamente');
-    }
+    if (SERVER_LOG_DETALLE) { console.log('✅ Tabla "carrusel_banners" verificada/creada correctamente'); }
     await asegurar_tabla_comunicados();
-    if (SERVER_LOG_DETALLE) {
-      console.log('✅ Tabla "comunicados" verificada/creada correctamente');
-    }
+    if (SERVER_LOG_DETALLE) { console.log('✅ Tabla "comunicados" verificada/creada correctamente'); }
     await asegurar_tabla_boletines();
-    if (SERVER_LOG_DETALLE) {
-      console.log('✅ Tabla "boletines" verificada/creada correctamente');
-    }
+    if (SERVER_LOG_DETALLE) { console.log('✅ Tabla "boletines" verificada/creada correctamente'); }
     await asegurar_tabla_normatividad();
-    
-    // Asegurar tabla de sesiones para autenticación vía cookies httpOnly
+
     await consultar(`
       CREATE TABLE IF NOT EXISTS sesiones (
         sid VARCHAR(64) PRIMARY KEY,
@@ -308,6 +320,35 @@ console.log(`📊 Base de datos: ${process.env.DB_NAME}@${process.env.DB_HOST}:$
         rol VARCHAR(64) NOT NULL,
         expira_en TIMESTAMP NOT NULL,
         creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    await consultar(`
+      CREATE TABLE IF NOT EXISTS notificaciones_eventos (
+        id_evento SERIAL PRIMARY KEY,
+        tipo VARCHAR(32) NOT NULL,
+        titulo TEXT,
+        mensaje TEXT,
+        marca_temporal TIMESTAMP NOT NULL DEFAULT NOW(),
+        leido BOOLEAN NOT NULL DEFAULT FALSE,
+        rol_destinatario VARCHAR(64),
+        ruta_sugerida VARCHAR(128),
+        datos JSONB,
+        prioridad VARCHAR(16) NOT NULL DEFAULT 'media'
+      )
+    `);
+    await consultar(`
+      CREATE TABLE IF NOT EXISTS notificaciones_configuracion (
+        id SERIAL PRIMARY KEY,
+        activo BOOLEAN NOT NULL DEFAULT TRUE,
+        titulo_regla TEXT,
+        mensaje TEXT,
+        trigger_id TEXT,
+        tipo VARCHAR(32) NOT NULL DEFAULT 'informacion',
+        prioridad VARCHAR(16) NOT NULL DEFAULT 'media',
+        rol_origen VARCHAR(64) NOT NULL DEFAULT 'cualquiera',
+        seccion_accion TEXT,
+        roles_destino TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
+        ruta_sugerida TEXT
       )
     `);
     const { asegurar_tabla_permisos_roles } = require('./modelos/permisos_roles');
@@ -319,28 +360,49 @@ console.log(`📊 Base de datos: ${process.env.DB_NAME}@${process.env.DB_HOST}:$
       for (const id of minimos) {
         try { await consultar('INSERT INTO permisos_roles (rol, alias, id_seccion) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', ['admin', 'Administrador del Sistema', id]); } catch (_) {}
       }
-      if (SERVER_LOG_DETALLE) {
-        console.log('✅ Sembrados permisos mínimos para admin');
-      }
+      if (SERVER_LOG_DETALLE) { console.log('✅ Sembrados permisos mínimos para admin'); }
     }
-    if (SERVER_LOG_DETALLE) {
-      console.log('✅ Tabla "normatividad" verificada/creada correctamente');
-    }
-    // Migrar contraseñas legadas a contrasena_hash si aplica
+    if (SERVER_LOG_DETALLE) { console.log('✅ Tabla "normatividad" verificada/creada correctamente'); }
     const mig = await migrar_contrasenas();
     if (mig?.migrated || mig?.copied) {
-      if (SERVER_LOG_DETALLE) {
-        console.log(`🔄 Resumen migración: hashed=${mig.migrated || 0}, copied=${mig.copied || 0}`);
-      }
+      if (SERVER_LOG_DETALLE) { console.log(`🔄 Resumen migración: hashed=${mig.migrated || 0}, copied=${mig.copied || 0}`); }
     }
+
+    try {
+      const rAdminUsr = await consultar('SELECT COUNT(*) AS total FROM usuarios WHERE LOWER(TRIM(usuario)) = $1', ['admin']);
+      const tAdminUsr = Number(rAdminUsr.rows?.[0]?.total || 0);
+      if (tAdminUsr === 0) {
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash('admin', salt);
+        await consultar(
+          'INSERT INTO usuarios (nombre, usuario, password, password_hash, rol, estatus, requiere_cambio_contrasena, fecha_registro, fecha_actualizacion) VALUES ($1,$2,$3,$4,$5,$6,FALSE,NOW(),NOW())',
+          ['Administrador del Sistema','admin','admin',hash,'admin','activo']
+        );
+      }
+    } catch (_) {}
   } catch (error) {
     console.error('⚠️ Advertencia: No se pudo conectar a la base de datos al inicio');
     console.error('   El servidor continuará ejecutándose, pero algunas funciones pueden no estar disponibles');
-    if (error && error.message) {
-      console.error(`   Detalle: ${error.message}`);
-    }
+    if (error && error.message) { console.error(`   Detalle: ${error.message}`); }
   }
-});
+};
+
+let server;
+if (USE_HTTPS) {
+  try {
+    if (!SSL_KEY_PATH || !SSL_CERT_PATH) {
+      throw new Error('HTTPS habilitado pero faltan rutas de certificados');
+    }
+    const key = fs.readFileSync(SSL_KEY_PATH);
+    const cert = fs.readFileSync(SSL_CERT_PATH);
+    server = https.createServer({ key, cert }, app).listen(HTTPS_PORT, '0.0.0.0', onStart);
+  } catch (e) {
+    console.error('❌ No se pudieron cargar certificados SSL, iniciando en HTTP');
+    server = app.listen(PORT, '0.0.0.0', onStart);
+  }
+} else {
+  server = app.listen(PORT, '0.0.0.0', onStart);
+}
 
 // Manejo de errores específicos del servidor
 server.on('error', (error) => {
@@ -374,7 +436,7 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
-  console.log('🔄 Cerrando servidor gracefully...');
+  console.log('🔄 Cerrando servidor cuidadosamente...');
   server.close(() => {
     console.log('✅ Servidor cerrado correctamente');
     process.exit(0);

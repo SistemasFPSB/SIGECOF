@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from 'react';
+import { CheckCircle, AlertTriangle, Info, Clipboard, Mail, RefreshCw } from 'lucide-react';
+import { FiEye, FiExternalLink } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useControlNotificaciones } from '../administrador/administrador_notificaciones.jsx';
 import { obtener_ruta_por_id, puede_ver_seccion, obtener_primera_ruta_permitida } from '../administrador/roles_permisos';

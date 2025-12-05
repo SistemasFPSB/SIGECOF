@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { FiImage, FiXCircle, FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 
 export default function Perfil() {

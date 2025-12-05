@@ -13,6 +13,9 @@ router.get('/api/notificaciones_configuracion', async (_req, res) => {
     const { rows } = await consultar(q);
     res.json({ reglas: rows });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.json({ reglas: [] });
+    }
     res.status(500).json({ error: 'error_listar_config' });
   }
 });
@@ -29,6 +32,9 @@ router.post('/api/notificaciones_configuracion', async (req, res) => {
     const { rows } = await consultar(q, vals);
     res.status(201).json({ regla: rows[0] });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_crear_regla' });
   }
 });
@@ -56,6 +62,9 @@ router.put('/api/notificaciones_configuracion/:id', async (req, res) => {
     if (rowCount === 0) return res.status(404).json({ error: 'no_encontrado' });
     res.json({ ok: true });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_actualizar_regla' });
   }
 });
@@ -67,6 +76,9 @@ router.delete('/api/notificaciones_configuracion/:id', async (req, res) => {
     if (rowCount === 0) return res.status(404).json({ error: 'no_encontrado' });
     res.json({ ok: true });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_eliminar_regla' });
   }
 });

@@ -1,0 +1,76 @@
+name: sigecof_prod
+services:
+  postgres:
+    container_name: PROD_postgres
+    image: postgres:16.11-alpine3.23
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_DB: sigecof_db
+      POSTGRES_USER: sigecof
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  pgadmin:
+    container_name: PROD_pgadmin
+    image: dpage/pgadmin4:9.10.0
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      PGADMIN_DEFAULT_EMAIL: sistemas@fopesiban.net
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "80:80"
+    depends_on:
+      - postgres
+
+  backend:
+    container_name: PROD_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: sigecof_db
+      DB_USER: sigecof
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: 5432
+      
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  frontend_landing:
+    container_name: PROD_landing
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3030:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  frontend_app:
+    container_name: PROD_app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

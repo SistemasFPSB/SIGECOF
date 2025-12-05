@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { useMensajesConfirmacion } from '../../utilidades/comunes/mensajes_confirmacion.jsx';
 import { useControlNotificaciones } from '../administrador/administrador_notificaciones.jsx';
+import OverlayDeCarga from '../../utilidades/comunes/overlay_de_carga.jsx';
+import { FiRefreshCw, FiPlus, FiSearch, FiAlertTriangle, FiCheckCircle, FiFileText, FiEye, FiEyeOff, FiTrash2, FiUpload, FiEdit } from 'react-icons/fi';
 
 // Nota: El nombre del componente usa PascalCase por convención de React.
 // Todas las variables, estados y funciones internas usan snake_case y están en español.

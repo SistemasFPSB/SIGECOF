@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiEye, FiEyeOff, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { useControlNotificaciones } from '../administrador/administrador_notificaciones.jsx';
 

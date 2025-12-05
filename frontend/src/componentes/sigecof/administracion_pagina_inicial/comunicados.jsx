@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FiRefreshCw, FiPlus, FiSearch, FiAlertTriangle, FiCheckCircle, FiFileText, FiUpload, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FaExclamationTriangle } from 'react-icons/fa';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { useMensajesConfirmacion } from '../../utilidades/comunes/mensajes_confirmacion.jsx';
 import { useControlNotificaciones } from '../administrador/administrador_notificaciones.jsx';

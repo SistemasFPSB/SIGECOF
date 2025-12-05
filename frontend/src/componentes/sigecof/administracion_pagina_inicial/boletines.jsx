@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiRefreshCw, FiPlus, FiEdit, FiTrash2, FiSearch, FiAlertTriangle, FiCheckCircle, FiFileText } from 'react-icons/fi';
+import { FiRefreshCw, FiPlus, FiEdit, FiTrash2, FiSearch, FiAlertTriangle, FiCheckCircle, FiFileText, FiUpload } from 'react-icons/fi';
 import { FaFilePdf, FaFileImage, FaFileArchive } from "react-icons/fa";
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { useMensajesConfirmacion } from '../../utilidades/comunes/mensajes_confirmacion.jsx';

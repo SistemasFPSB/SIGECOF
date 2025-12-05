@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Shield, Key } from 'lucide-react';
 
 export default function RolPendiente() {
   const navigate = useNavigate();

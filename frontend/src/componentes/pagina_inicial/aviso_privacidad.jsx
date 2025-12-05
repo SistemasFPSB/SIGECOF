@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 
 import { useInicioSesion as useSesion } from './inicio_sesion/contexto/inicio_sesion-Context';
+import { FaCalendarAlt, FaCompress, FaExpand, FaBuilding, FaChevronDown, FaChevronRight, FaBullseye, FaClipboardList, FaBalanceScale, FaEye, FaEdit, FaTrash, FaBan, FaExchangeAlt, FaPhoneAlt } from 'react-icons/fa';
 
 /**
  * Componente de la sección Aviso de Privacidad

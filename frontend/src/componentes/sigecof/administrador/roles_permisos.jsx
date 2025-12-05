@@ -1,11 +1,12 @@
 // roles_permisos.jsx - Componente unificado para gestión de roles y permisos
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import { useInicioSesion } from '../../pagina_inicial/inicio_sesion/contexto/inicio_sesion-Context';
 import { actualizar_etiqueta_rol_backend, obtener_etiquetas_roles } from '../../utilidades/estado_persistente.jsx';
 import { useControlNotificaciones } from './administrador_notificaciones.jsx';
 import { obtenerIdPorRuta, secciones_disponibles, obtener_ruta_por_id as obtenerRutaPorIdItems, es_ruta_conocida as esRutaConocidaItems, obtener_permisos_criticos_base as obtenerPermisosCriticosBaseItems, obtener_permisos_criticos_rol as obtenerPermisosCriticosRolItems, obtener_primera_ruta_permitida_desde_permisos as obtenerPrimeraRutaDesdePermisosItems } from '../../utilidades/items';
 import { useMensajesConfirmacion } from '../../utilidades/comunes/mensajes_confirmacion.jsx';
+import { FiRefreshCw, FiKey, FiUsers, FiAlertTriangle, FiCheckCircle, FiSearch, FiPlus, FiEdit3, FiTrash2, FiSave, FiChevronRight } from 'react-icons/fi';
 
 export const roles = {
   administrador: 'admin',
@@ -222,20 +223,36 @@ const RolesPermisos = () => {
   const { token, usuarioAutenticado } = useInicioSesion();
   const { procesar_evento, rol_actual } = useControlNotificaciones();
   const API_BASE = process.env.REACT_APP_API_URL;
-  const BASE_CON_API = (API_BASE && /^https?:\/\//.test(API_BASE))
-    ? String(API_BASE).replace(/\/+$/, '')
-    : 'http://127.0.0.1:5000/api';
+  const BASE_CON_API = (() => {
+    if (API_BASE && /^https?:\/\//.test(API_BASE)) return String(API_BASE).replace(/\/+$/, '');
+    try {
+      const host = typeof window !== 'undefined' ? (window.location?.hostname || 'localhost') : 'localhost';
+      return `http://${host}:5000/api`;
+    } catch (_) {
+      return 'http://localhost:5000/api';
+    }
+  })();
 
   const fetch_flexible = React.useCallback(async (ruta_relativa, opciones = {}) => {
-    const url = `${BASE_CON_API}${ruta_relativa}`;
-    try {
-      const resp = await fetch(url, { credentials: 'include', ...opciones });
-      let data = {};
-      try { data = await resp.json(); } catch {}
-      return { resp, data };
-    } catch (error) {
-      return { resp: { ok: false, status: 0 }, data: { error: error.message } };
+    const intentos = [
+      `${BASE_CON_API}${ruta_relativa}`,
+      (typeof window !== 'undefined' ? `${window.location.origin.replace(/\/$/, '')}/api${ruta_relativa}` : null),
+    ].filter(Boolean);
+    let ultimaRespuesta = null;
+    let ultimoData = null;
+    for (const url of intentos) {
+      try {
+        const resp = await fetch(url, { credentials: 'include', ...opciones });
+        let data = {};
+        try { data = await resp.json(); } catch {}
+        if (resp.ok) return { resp, data };
+        ultimaRespuesta = resp; ultimoData = data;
+      } catch (error) {
+        ultimaRespuesta = { ok: false, status: 0 };
+        ultimoData = { error: error.message };
+      }
     }
+    return { resp: ultimaRespuesta || { ok: false, status: 0 }, data: ultimoData || { error: 'Error de solicitud' } };
   }, [BASE_CON_API]);
 
   const headersAuth = useMemo(() => (

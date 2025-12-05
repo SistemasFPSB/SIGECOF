@@ -1,0 +1,96 @@
+name: sigecof_dev
+services:
+  postgres:
+    container_name: DEV_postgres
+    image: postgres:16.11-alpine3.23
+    restart: always
+    env_file:
+      - .env.development
+    environment:
+      POSTGRES_DB: sigecof_db
+      POSTGRES_USER: sigecof
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigecof -d sigecof_db -h localhost -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    
+  pgadmin:
+    container_name: DEV_pgadmin
+    image: dpage/pgadmin4:9.10.0
+    restart: always
+    env_file:
+      - .env.development
+    environment:
+      PGADMIN_DEFAULT_EMAIL: sistemas@fopesiban.net
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+
+  backend:
+    container_name: DEV_backend
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env.development
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_NAME: sigecof_db
+      DB_USER: sigecof
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: 5432
+      
+    command: ["sh","-c","npm install && npm run start"]
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend_landing:
+    container_name: DEV_landing
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    env_file:
+      - .env.development
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3030
+    command: ["sh","-c","npm install && HOST=0.0.0.0 PORT=3030 npm run start"]
+    ports:
+      - "3031:3030"
+    depends_on:
+      - backend
+
+  frontend_app:
+    container_name: DEV_app
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    env_file:
+      - .env.development
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    command: ["sh","-c","npm install && HOST=0.0.0.0 PORT=3000 npm run start"]
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_dev_data:

@@ -30,6 +30,9 @@ router.get('/api/notificaciones_eventos', async (req, res) => {
     const { rows } = await consultar(q, [rol]);
     res.json({ notificaciones: rows });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.json({ notificaciones: [] });
+    }
     res.status(500).json({ error: 'error_listar_eventos' });
   }
 });
@@ -46,6 +49,9 @@ router.post('/api/notificaciones_eventos', async (req, res) => {
     const { rows } = await consultar(q, vals);
     res.status(201).json({ notificacion: rows[0] });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_crear_evento' });
   }
 });
@@ -58,6 +64,9 @@ router.patch('/api/notificaciones_eventos/:id', async (req, res) => {
     if (rowCount === 0) return res.status(404).json({ error: 'no_encontrado' });
     res.json({ ok: true });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_actualizar_evento' });
   }
 });
@@ -68,6 +77,9 @@ router.post('/api/notificaciones_eventos/marcar_todas_como_leidas', async (req, 
     await consultar("UPDATE notificaciones_eventos SET leido = TRUE WHERE LOWER(COALESCE(rol_destinatario,'')) = LOWER($1)", [rol || '']);
     res.json({ ok: true });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_marcar_todas' });
   }
 });
@@ -79,6 +91,9 @@ router.delete('/api/notificaciones_eventos/:id', async (req, res) => {
     if (rowCount === 0) return res.status(404).json({ error: 'no_encontrado' });
     res.json({ ok: true });
   } catch (e) {
+    if (String(e?.code) === '42P01') {
+      return res.status(503).json({ error: 'tabla_no_disponible' });
+    }
     res.status(500).json({ error: 'error_eliminar_evento' });
   }
 });
